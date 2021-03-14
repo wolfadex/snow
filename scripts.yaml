@@ -1,0 +1,7 @@
+scripts:
+  main-dev:
+    desc: Run the compiler in dev mode
+    cmd: deno run --allow-read --allow-write --unstable src/runner.ts
+  elm-dev:
+    desc: Build elm compiler in dev mode
+    cmd: elm-live src/Main.elm --no-server -- --debug --output=src/elm.js
