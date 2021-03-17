@@ -11,6 +11,9 @@ try {
   console.log("carl", err);
 }
 
+await Deno.mkdir("dist/js", { recursive: true });
+await Deno.mkdir("dist/zig", { recursive: true });
+
 // const kernelFile = await Deno.readFile("./core/Bex/Kernel.js");
 // const kernelCode = decoder.decode(kernelFile);
 
@@ -37,6 +40,22 @@ app.ports.loadFile.subscribe(async function (filePath: string) {
     });
   } catch (err) {
     console.log("loadFile", filePath, err);
+  }
+});
+
+interface WriteMsg {
+  filePath: string;
+  content: string;
+}
+
+app.ports.compilerOutput.subscribe(async function ({
+  filePath,
+  content,
+}: WriteMsg) {
+  try {
+    await Deno.writeFile(filePath, encoder.encode(content));
+  } catch (err) {
+    console.log("writeFile", filePath, err);
   }
 });
 

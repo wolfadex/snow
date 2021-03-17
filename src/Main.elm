@@ -3,7 +3,9 @@ port module Main exposing (main)
 import Json.Decode exposing (Decoder)
 import Json.Encode exposing (Value)
 import Platform
-import Snow.Parser exposing (Error(..), SnowExpr)
+import Snow.Compiler.JavaScript
+import Snow.Language exposing (SnowExpr)
+import Snow.Parser exposing (Error(..))
 
 
 main : Program Flags Model Msg
@@ -30,8 +32,11 @@ init args =
     let
         _ =
             Debug.log "args" args
+
+        plusTwo =
+            (+) 2
     in
-    ( { placeholder = ""
+    ( { placeholder = plusTwo 3 |> String.fromInt
       , snowResult = Err Error
       }
     , case args of
@@ -69,11 +74,18 @@ port logError : Value -> Cmd msg
 port loadFile : Value -> Cmd msg
 
 
+port compilerOutput : Value -> Cmd msg
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         NoOp ->
-            ( model, Cmd.none )
+            ( model
+            , "No Op"
+                |> Json.Encode.string
+                |> log
+            )
 
         FileLoaded val ->
             case Json.Decode.decodeValue decodeFileLoaded val of
@@ -96,10 +108,23 @@ update msg model =
                     ( { model
                         | snowResult = snowResult
                       }
-                    , snowResult
-                        |> Debug.toString
-                        |> Json.Encode.string
-                        |> log
+                    , case snowResult of
+                        Err err ->
+                            err
+                                |> Debug.toString
+                                |> Json.Encode.string
+                                |> logError
+
+                        Ok expr ->
+                            [ ( "filePath", Json.Encode.string "dist/js/snow.js" )
+                            , ( "content"
+                              , expr
+                                    |> Snow.Compiler.JavaScript.compile
+                                    |> Json.Encode.string
+                              )
+                            ]
+                                |> Json.Encode.object
+                                |> compilerOutput
                     )
 
 

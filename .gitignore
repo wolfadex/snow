@@ -1,6 +1,13 @@
+# Snow
+dist
+
 # Elm
 elm-stuff
 elm.js
+index.html
+
+# Zig
+zig-cache
 
 # Mac
 .DS_Store

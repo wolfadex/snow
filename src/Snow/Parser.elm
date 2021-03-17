@@ -3,45 +3,51 @@ module Snow.Parser exposing (..)
 import Parser exposing ((|.), (|=), Parser, symbol)
 import Parser.Expression exposing (Assoc(..), Operator(..))
 import Pratt exposing (Config)
+import Snow.Language exposing (BinOp(..), Literal(..), SnowExpr(..))
 
 
 type Error
     = Error
 
 
-type alias Id =
-    String
-
-
-type SnowExpr
-    = SVar Id -- f
-    | SLambda Id SnowExpr -- \x -> x
-    | SApply SnowExpr SnowExpr -- f x
-    | SLiteral Literal -- 5
-
-
-type Literal
-    = LInt Int
-
-
 parse : String -> Result Error SnowExpr
 parse =
     Parser.run parseExpr
-        >> Result.mapError (\_ -> Error)
+        >> Result.mapError
+            (\err ->
+                let
+                    _ =
+                        Debug.log "parse error" err
+                in
+                Error
+            )
+
+
+parseSnow : Parser SnowExpr
+parseSnow =
+    Parser.succeed identity
+        |= parseExpr
+        |. Parser.end
 
 
 parseExpr : Parser SnowExpr
 parseExpr =
     Pratt.expression
         { oneOf =
-            [ Pratt.prefix 10 (Parser.symbol "-") negateExpr
+            [ parseInt
             , parseLambda
-            , parseInt
             , parseVariable
             , parenthesizedExpression
             ]
         , andThenOneOf =
-            [ paseApply ]
+            [ Pratt.infixLeft 10 (Parser.symbol "+") (SBinOp Addition)
+            , Pratt.infixLeft 10 (Parser.symbol "-") (SBinOp Subtraction)
+            , Pratt.infixLeft 20 (Parser.symbol "*") (SBinOp Multiplication)
+
+            -- , Pratt.infixLeft 20 (Parser.symbol "/") (/)
+            -- , Pratt.infixRight 30 (Parser.symbol "^") (^)
+            , paseApply
+            ]
         , spaces = Parser.spaces
         }
 
@@ -108,7 +114,15 @@ parseVariable _ =
 
 parseInt : Config SnowExpr -> Parser SnowExpr
 parseInt =
-    Parser.succeed LInt
+    Parser.succeed (\sign value -> LInt (sign value))
+        |. Parser.spaces
+        |= Parser.oneOf
+            [ Parser.symbol "-" |> Parser.map (always negate)
+            , Parser.symbol "+" |> Parser.map (always identity)
+            , Parser.succeed identity
+            ]
         |= Parser.int
+        |. Parser.spaces
+        |> Parser.backtrackable
         |> Parser.map SLiteral
         |> Pratt.literal
