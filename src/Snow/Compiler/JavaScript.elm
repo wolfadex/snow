@@ -23,6 +23,10 @@ function snow() {
       return left - right;
   }
 
+  function _Basics_multiply(left, right) {
+      return left * right;
+  }
+
   const gMachine = {
     instructions: [],
     stack: [],
